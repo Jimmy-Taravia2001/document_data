@@ -1,0 +1,229 @@
+Wuzah repositories: to watch and read. 
+1)kibana
+2)dashboard
+3)wui
+
+---------------------------------------------------------------------------------------
+what do we want ?
+---------------------------------------------------------------------------------------
+
+
+---------------------------------------------------------------------------------------
+Elasticsearch is the place where all the Log data is stored. and retrieve them from kabana.
+---------------------------------------------------------------------------------------
+ 
+
+INDEXER
+---------------------------------------------------------------------------------------
+Certificate creation in wazuh indexer installation:
+wazuh-certs-tool.sh (script) [ # curl -sO https://packages.wazuh.com/4.3/wazuh-certs-tool.sh ]
+config.yml (configuration file)[  # -sO https://packages.wazuh.com/4.3/config.yml ]
+both these things create certificates which encrypt communication between wazuh central components.
+---------------------------------------------------------------------------------------
+
+
+Installation using bitvise ssh or mobaxterm 
+---------------------------------------------------------------------------------------
+NOTE: type all commands because in puTTy session timeout occurs and is not feasible.
+---------------------------------------------------------------------------------------
+
+
+
+WAZUH INDEXER
+
+First of all curl maybe absent in the terminal or os so first download curl. By following : 
+sudo apt update
+sudo apt install curl
+
+Then finally install .sh file and .yml that is configuration file using the below commands:
+
+curl -sO https://packages.wazuh.com/4.3/wazuh-certs-tool.sh
+ To check use the ls command and the output to ls command should be: 
+wazuh-certs-tool.sh
+
+Then run command for configuaring the file:  
+curl -sO https://packages.wazuh.com/4.3/config.yml
+
+Again to check run ls command: and output should be:  
+config.yml    wazuh-certs–tool.sh 
+
+
+Then to edit config file: we use vi command in linux so down below command should be typed: ( For error to edit the config.yml file use this link: https://success.trendmicro.com/dcx/s/solution/1113864-editing-configuration-files-of-linux-based-products?language=en_US )
+vi config.yml
+
+
+[Do not use vi but use sudo nano config.yml ]
+
+
+
+Now, you have to change the ip address of nodes of indexer, server, dashboard with the one that was provided by office as the host ip address: (here ip address is  172.17.14.33)
+
+You can then use 
+wq! command to save and quit the file   (according to amazon ec2)
+
+Now run the shell script that we installed with config file by using below command: 
+
+bash ./wazuh-certs-tool.sh -A
+
+After this check the status by typing ls command and output should be : 
+wazuh-certificates   wazuh-certs-tool.sh
+
+
+Now check all certificate present or not with: 
+cd wazuh-certificates/
+And then type ls command and output will be : all different types of certificates like admin-key.pem    admin.pem   dashboard-key.pem    dashboard.pem  etc. etc.
+Now after checking go back by typing command:
+
+
+cd .. 
+
+Now further go int o the process and type the command below: 
+tar -cvf ./wazuh-certificates.tar -C ./wazuh-certificates/ . 
+This above command is creation of a tar file of wazuh certifiactes
+
+And now the next command is to type : 
+rm -rf ./wazuh-certificates
+
+Now again type ls command and the output should be : 
+config.yml      wazuh-certificates.tar  wazuh-certs–tool.sh
+
+
+Install the node packages if missing: 
+sudo apt-get install debconf adduser procps
+
+
+NODES  Installation: 
+We have to use APT option commands not YUM commands because YUM is in Fedora
+
+So start typing this command first: Note: type sudo before this commmand
+apt-get -y install wazuh-indexer
+
+Now as per the youtube video we already have downloaded dependencies so we further go ahed and add the key (GPG key) by using the following command:
+Note: also here type sudo before  
+curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg 
+
+But you will get will get error here: that command can only be used by sudo: 
+
+So here we type command first :
+ sudo su root 
+
+Then the command: 
+sudo curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg 
+
+OR
+sudo curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | apt-key add -
+
+Output will be:
+ Ok
+
+Now is the time to add the repository: so type the command below:
+
+echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" | tee -a /etc/apt/sources.list.d/wazuh.list
+
+Output will be : 
+Deb https://packages.wazuh.com/4.x/apt//stable/ main
+
+
+Now use the below command to update the package information:
+apt-get update 
+
+
+
+Now is the timme to install the WAZUH INSTALLER:
+Type the following command: 
+apt-get -y install wazuh-indexer
+
+NOTE: it will take time as it is heavy package
+
+Now to open the config file as shown in website (https://documentation.wazuh.com/current/installation-guide/wazuh-indexer/step-by-step.html )
+Type the following command but ass sudo first so we type:
+
+sudo vi /etc/wazuh-indexer/opensearch.yml
+
+Now edit the file by changing the network-host value with the value that the ip address provided by office: so that ssl certificate is created
+NOTE: wee are not creating cluster here so we will not provide ip addresses  to multiple nodes
+
+After that you can type the 
+wq! command to save and quit
+
+
+
+
+
+NOW:
+Type the command:
+NODE_NAME=node-1
+NOTE: here node-1 is originally our node-1 name already there so .
+
+After this run these commands: 
+
+mkdir /etc/wazuh-indexer/certs
+
+tar -xf ./wazuh-certificates.tar -C /etc/wazuh-indexer/certs/ ./$NODE_NAME.pem ./$NODE_NAME-key.pem ./admin.pem ./admin-key.pem ./root-ca.pem
+
+mv -n /etc/wazuh-indexer/certs/$NODE_NAME.pem /etc/wazuh-indexer/certs/indexer.pem
+
+mv -n /etc/wazuh-indexer/certs/$NODE_NAME-key.pem /etc/wazuh-indexer/certs/indexer-key.pem
+
+chmod 500 /etc/wazuh-indexer/certs
+
+chmod 400 /etc/wazuh-indexer/certs/*
+
+chown -R wazuh-indexer:wazuh-indexer /etc/wazuh-indexer/certs
+
+
+
+
+After all this type ls command to check status and output will be:  
+wazuh-certificates.tar   wazuh-certs-tool.sh 
+
+Now you can check the files available in wazuh-indexer folder: type the following command next: 
+
+cd /etc/wazuh-indexer/
+
+And then type the command ls: output will be: 
+certs    jvm.options   jvm.options.d    log4j2.properties etc. etc.  
+
+Then type: 
+cd certs/
+Type ls command and output will be : 
+admin-key.pem   admin.pem   indexer-key.pem  indexer.pem   root-ca.pem
+
+
+
+So all is good now then type cd command and then lets go further
+
+
+Now type the following command:
+
+systemctl daemon-reload
+systemctl enable wazuh-indexer
+systemctl start wazuh-indexer
+ 
+
+Here the 2nd command is used so that whenever we start this instance we do not need to turn on or power on the wazuh-indexer it will start automatically as enable command is used
+
+NOTE: 
+—---------
+DO not run this below 3 linnes as they are not required but are just for checking purpose:
+
+After this you can check the status of the service by typing the command:
+systemctl statust wazuh-indexer
+Output should be active and running process:
+—---------
+
+Now type the command:
+/usr/share/wazuh-indexer/bin/indexer-security-init.sh
+
+It will show connecting to ip address(of the office will be shown there)...
+
+And finally Done with success
+
+Wazuh indexer is installed successfully.
+Finally to check whether it is working correctly type the below command:
+curl -k -u admin:admin https://<WAZUH_INDEXER_IP>:9200/_cat/nodes?v
+
+<WAZUH_INDEXER_IP> = 172.17.14.33 (your ip address)
+
+
+
